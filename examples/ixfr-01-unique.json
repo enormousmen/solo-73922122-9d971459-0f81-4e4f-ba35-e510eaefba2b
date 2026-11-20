@@ -1,0 +1,51 @@
+{
+  "zone": "ops.example.com",
+  "backup_serial": 100,
+  "backup_records": [
+    {"name": "www.ops.example.com", "type": "A", "value": "10.0.0.1", "ttl": 300},
+    {"name": "api.ops.example.com", "type": "CNAME", "value": "www.ops.example.com", "ttl": 60}
+  ],
+  "target_serial": 103,
+  "deltas": [
+    {
+      "id": "frag-c",
+      "from_serial": 101,
+      "to_serial": 102,
+      "deletions": [
+        {"name": "www.ops.example.com", "type": "A", "value": "10.0.0.1", "ttl": 300}
+      ],
+      "additions": [
+        {"name": "www.ops.example.com", "type": "A", "value": "10.0.0.2", "ttl": 300}
+      ]
+    },
+    {
+      "id": "frag-a",
+      "from_serial": 100,
+      "to_serial": 101,
+      "deletions": [],
+      "additions": [
+        {"name": "db.ops.example.com", "type": "A", "value": "10.0.1.1", "ttl": 120}
+      ]
+    },
+    {
+      "id": "frag-b",
+      "from_serial": 102,
+      "to_serial": 103,
+      "deletions": [
+        {"name": "api.ops.example.com", "type": "CNAME", "value": "www.ops.example.com", "ttl": 60}
+      ],
+      "additions": [
+        {"name": "api.ops.example.com", "type": "CNAME", "value": "db.ops.example.com", "ttl": 60}
+      ]
+    },
+    {
+      "id": "frag-x",
+      "from_serial": 100,
+      "to_serial": 101,
+      "deletions": [
+        {"name": "www.ops.example.com", "type": "A", "value": "10.0.0.1", "ttl": 60}
+      ],
+      "additions": []
+    }
+  ]
+}

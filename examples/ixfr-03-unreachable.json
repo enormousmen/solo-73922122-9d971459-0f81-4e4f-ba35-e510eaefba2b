@@ -1,0 +1,30 @@
+{
+  "zone": "ops.example.com",
+  "backup_serial": 100,
+  "backup_records": [
+    {"name": "www.ops.example.com", "type": "A", "value": "10.0.0.1", "ttl": 300}
+  ],
+  "target_serial": 103,
+  "deltas": [
+    {
+      "id": "frag-1",
+      "from_serial": 100,
+      "to_serial": 101,
+      "deletions": [],
+      "additions": [
+        {"name": "db.ops.example.com", "type": "A", "value": "10.0.1.1", "ttl": 120}
+      ]
+    },
+    {
+      "id": "frag-3",
+      "from_serial": 102,
+      "to_serial": 103,
+      "deletions": [
+        {"name": "www.ops.example.com", "type": "A", "value": "10.0.0.1", "ttl": 300}
+      ],
+      "additions": [
+        {"name": "www.ops.example.com", "type": "A", "value": "10.0.0.2", "ttl": 300}
+      ]
+    }
+  ]
+}

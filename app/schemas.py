@@ -75,3 +75,45 @@ class PlanResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+
+
+class SnapshotRecord(BaseModel):
+    """One record of a reconstructed snapshot (same shape as /plan records)."""
+
+    name: str
+    type: Literal["A", "CNAME"]
+    value: str
+    ttl: int
+
+
+class SnapshotDifference(BaseModel):
+    """One record on which two valid chains disagree."""
+
+    record: SnapshotRecord
+    present_in_chain_a: bool
+    present_in_chain_b: bool
+
+
+class IxfrReconstructResponse(BaseModel):
+    status: Literal["unique_snapshot", "ambiguous", "unreachable"]
+    status_meaning: str
+    message: str
+    zone: str
+    backup_serial: int
+    target_serial: int
+    delta_count: int
+    assumptions: list[str]
+    # unique_snapshot only
+    records: list[SnapshotRecord] | None = None
+    record_count: int | None = None
+    example_chain: list[str | int] | None = None
+    # ambiguous only
+    chain_a: list[str | int] | None = None
+    chain_b: list[str | int] | None = None
+    difference: SnapshotDifference | None = None
+    distinct_snapshots_at_target: int | None = None
+    # unreachable only
+    highest_reachable_serial: int | None = None
+    reachable_serials: list[int] | None = None
+
+    model_config = {"extra": "allow"}

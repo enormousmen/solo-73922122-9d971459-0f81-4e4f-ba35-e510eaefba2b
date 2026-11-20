@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
-from typing import Literal
+from typing import Iterable, Literal, Protocol
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -58,6 +58,65 @@ def zone_covering(name: str, zone_names: list[str]) -> tuple[str, int] | None:
         if in_zone(name, z) and (best is None or len(z) > len(best[0])):
             best = (z, idx)
     return best
+
+
+class RecordLike(Protocol):
+    """Anything with normalised record fields (Record, RecKey, ...)."""
+
+    name: str
+    type: str
+    value: str
+
+
+def check_zone_records(
+    zone_name: str, records: Iterable[RecordLike], field: str = "records"
+) -> None:
+    """Enforce the zone-level record rules /plan relies on.
+
+    Shared by the ``Zone`` request model and the IXFR reconstructor, which
+    validates every reconstructed zone state against exactly these rules.
+    Raises ``ValueError`` on the first violation found.
+    """
+    owned: dict[str, tuple[str, set[str]]] = {}
+    for rec in records:
+        if not in_zone(rec.name, zone_name):
+            raise ValueError(
+                f"{field}: {rec.name!r} is not owned by zone {zone_name!r} "
+                "(zones must be self-contained)"
+            )
+        if rec.name == zone_name and rec.type == "CNAME":
+            raise ValueError(
+                f"{field}: CNAME at the zone apex {zone_name!r} is not "
+                "valid in authoritative DNS (the apex holds SOA/NS)"
+            )
+        previous = owned.get(rec.name)
+        if previous is not None and previous[0] != rec.type:
+            raise ValueError(
+                f"{field}: {rec.name!r} has both A and CNAME records, "
+                "which authoritative DNS forbids"
+            )
+        targets = previous[1] if previous else set()
+        if rec.type == "CNAME":
+            targets.add(rec.value)
+            if len(targets) > 1:
+                raise ValueError(
+                    f"{field}: {rec.name!r} has conflicting CNAME targets"
+                )
+        owned[rec.name] = (rec.type, targets)
+
+    # A name holding a CNAME cannot also have names below it.  Equivalently:
+    # no record may sit below a name that holds a CNAME.
+    cnames = {n for n, (t, _targets) in owned.items() if t == "CNAME"}
+    if cnames:
+        for name in owned:
+            ancestor = name
+            while "." in ancestor:
+                ancestor = ancestor.split(".", 1)[1]
+                if ancestor in cnames:
+                    raise ValueError(
+                        f"{field}: {ancestor!r} is a CNAME but also has names "
+                        "below it; authoritative DNS forbids that"
+                    )
 
 
 class Record(BaseModel):
@@ -119,47 +178,9 @@ class Zone(BaseModel):
 
     @model_validator(mode="after")
     def _check_zone_records(self) -> "Zone":
-        self._check_rrset("records", self.records)
-        self._check_rrset("new_records", self.new_records)
+        check_zone_records(self.name, self.records, field="records")
+        check_zone_records(self.name, self.new_records, field="new_records")
         return self
-
-    def _check_rrset(self, field: str, records: list[Record]) -> None:
-        owned: dict[str, tuple[str, set[str]]] = {}
-        for rec in records:
-            if not in_zone(rec.name, self.name):
-                raise ValueError(
-                    f"{field}: {rec.name!r} is not owned by zone {self.name!r} "
-                    "(zones must be self-contained)"
-                )
-            if rec.name == self.name and rec.type == "CNAME":
-                raise ValueError(
-                    f"{field}: CNAME at the zone apex {self.name!r} is not "
-                    "valid in authoritative DNS (the apex holds SOA/NS)"
-                )
-            previous = owned.get(rec.name)
-            if previous is not None and previous[0] != rec.type:
-                raise ValueError(
-                    f"{field}: {rec.name!r} has both A and CNAME records, "
-                    "which authoritative DNS forbids"
-                )
-            targets = previous[1] if previous else set()
-            if rec.type == "CNAME":
-                targets.add(rec.value)
-                if len(targets) > 1:
-                    raise ValueError(
-                        f"{field}: {rec.name!r} has conflicting CNAME targets"
-                    )
-            owned[rec.name] = (rec.type, targets)
-
-        # A name holding a CNAME cannot also have names below it.
-        cnames = [n for n, (t, _targets) in owned.items() if t == "CNAME"]
-        for cname in cnames:
-            suffix = "." + cname
-            if any(other != cname and other.endswith(suffix) for other in owned):
-                raise ValueError(
-                    f"{field}: {cname!r} is a CNAME but also has names below "
-                    "it; authoritative DNS forbids that"
-                )
 
 
 class PlanRequest(BaseModel):

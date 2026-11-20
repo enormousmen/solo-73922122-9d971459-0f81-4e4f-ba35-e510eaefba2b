@@ -1,0 +1,28 @@
+{
+  "zone": "ops.example.com",
+  "backup_serial": 100,
+  "backup_records": [
+    {"name": "www.ops.example.com", "type": "A", "value": "10.0.0.1", "ttl": 300}
+  ],
+  "target_serial": 101,
+  "deltas": [
+    {
+      "id": "replica-a",
+      "from_serial": 100,
+      "to_serial": 101,
+      "deletions": [],
+      "additions": [
+        {"name": "api.ops.example.com", "type": "A", "value": "10.0.2.1", "ttl": 300}
+      ]
+    },
+    {
+      "id": "replica-b",
+      "from_serial": 100,
+      "to_serial": 101,
+      "deletions": [],
+      "additions": [
+        {"name": "api.ops.example.com", "type": "A", "value": "10.0.2.2", "ttl": 300}
+      ]
+    }
+  ]
+}
